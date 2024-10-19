@@ -5,9 +5,9 @@ import seaborn as sns
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.model_selection import cross_val_score
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.model_selection import GridSearchCV
 
 "STEP 1:"
@@ -33,10 +33,26 @@ X_test = strat_df_test.drop("Step", axis = 1)
 y_test = strat_df_test["Step"]
 
 "STEP 2:"
-#visualization
+#visualization of only training data to avoid snooping bias
+
+#scatter matrix to see relationships between each variable and histograms
+pd.plotting.scatter_matrix(strat_df_train)
 
 
+"STEP 3:"
+#Correlation Analysis
 
+# Create the correlation matrix heatmap
+# Although outcome is categorical, since it is represented by discrete numbers
+# we can look at the heatmap to see any direct correlations bw coordinates and step.
+# Also assisted by the scatter matrix
+plt.figure()
+corr_matrix = (strat_df_train).corr()
+sns.heatmap(np.abs(corr_matrix))
+# Most importantly, can see no significant correlation between features.
+
+
+"STEP 4:"
 # Scaling
 #set up scaler object
 my_scaler = StandardScaler()
@@ -55,7 +71,34 @@ scaled_data_test = my_scaler.transform(X_test.iloc[:,0:-1])
 scaled_data_test_df = pd.DataFrame(scaled_data_test, columns=X_test.columns[0:-1])
 X_test = scaled_data_test_df.join(X_test.iloc[:,-1:])
 
+#LOGISTIC REGRESSION
+#initialize logistic regression
+model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=200)
 
+#train model
+model.fit(X_train, y_train)
 
+#Run the model
+y_pred = model.predict(X_test)
 
+#Metrics
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+print("Accuracy Score:", accuracy_score(y_test, y_pred))
 
+print("Confusion Matrix:")
+cm = confusion_matrix(y_test, y_pred)
+
+# Step 2: Create a DataFrame for better visualization
+cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+
+# Step 3: Plot the confusion matrix using seaborn
+plt.figure(figsize=(10, 7))
+sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+            xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
+
+# Step 4: Customize the plot
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Confusion Matrix')
+plt.show()
