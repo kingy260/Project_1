@@ -6,9 +6,12 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.model_selection import GridSearchCV
+from sklearn.naive_bayes import GaussianNB
+from sklearn import svm
+from sklearn.model_selection import RandomizedSearchCV
 
 "STEP 1:"
 
@@ -72,33 +75,202 @@ scaled_data_test_df = pd.DataFrame(scaled_data_test, columns=X_test.columns[0:-1
 X_test = scaled_data_test_df.join(X_test.iloc[:,-1:])
 
 #LOGISTIC REGRESSION
+
+#parameter grid that will be used in gridsearch for LR. 
+#The main params to tune are the solver, penalty, and C (inverse of regularization strength, smaller C = stronger reduction in overfitting)
+LRparam_grid = {
+     'solver': ['lbfgs', 'newton-cg', 'sag'],
+     'penalty': [None, 'l2'],
+     'C': [0.01,0.1, 1, 10]
+ }
+
 #initialize logistic regression
-model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=200)
+LRmodel = LogisticRegression(multi_class='multinomial', random_state=69, max_iter=100)
+LRgrid_search = GridSearchCV(LRmodel, LRparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
 
-#train model
-model.fit(X_train, y_train)
+#do the grid search
+LRgrid_search.fit(X_train, y_train)
 
-#Run the model
-y_pred = model.predict(X_test)
+#best parameters
+print("Best Parameters:", LRgrid_search.best_params_)
+
+#get the best model
+LRmodel = LRgrid_search.best_estimator_
+
+#use the best estimator on the testing data
+LRy_pred = LRmodel.predict(X_test)
+LRy_pred_train = LRmodel.predict(X_train) 
 
 #Metrics
 print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
-print("Accuracy Score:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, LRy_pred))
+print("Accuracy Score:", accuracy_score(y_test, LRy_pred))
+print("Training Accuracy Score:", accuracy_score(y_train, LRy_pred_train))
 
+#make the confusion matrix
 print("Confusion Matrix:")
-cm = confusion_matrix(y_test, y_pred)
+cm = confusion_matrix(y_test, LRy_pred)
 
-# Step 2: Create a DataFrame for better visualization
+#create dataframe from confusion matrix so it can be turned into a heatmap
 cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
 
-# Step 3: Plot the confusion matrix using seaborn
+#make heatmap
 plt.figure(figsize=(10, 7))
 sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
-
-# Step 4: Customize the plot
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
-plt.title('Confusion Matrix')
+plt.title('Logistic Regression Confusion Matrix')
+plt.show()
+
+# #RANDOM FOREST
+
+# #parameter grid that will be used in gridsearch for RF. 
+# #The main params to tune are num_estimators max depth, min_samples split,... 
+# #min_samples_leaf, criterion, and max features
+# RFparam_grid = {
+#      'n_estimators': [5, 10, 30, 50],
+#      'max_depth': [None, 5, 15, 45],
+#      'min_samples_split': [2, 5, 10],
+#      'min_samples_leaf': [1, 2, 4, 6],
+#      'max_features': [None,0.1,'sqrt', 'log2', 1, 2, 3],
+#      'criterion': ['gini', 'entropy']
+#  }
+
+# #initialize random forest
+# RFmodel = RandomForestClassifier(random_state=69)
+
+# RFgrid_search = GridSearchCV(RFmodel, RFparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
+
+# #do the grid search
+# RFgrid_search.fit(X_train, y_train)
+
+# #best parameters
+# print("Best Parameters:", RFgrid_search.best_params_)
+
+# #get the best model
+# RFmodel = RFgrid_search.best_estimator_
+
+# #use the best estimator on the testing data
+# RFy_pred = RFmodel.predict(X_test)
+# RFy_pred_train = RFmodel.predict(X_train) 
+
+# #Metrics
+# print("\nClassification Report:")
+# print(classification_report(y_test, RFy_pred))
+# print("Accuracy Score:", accuracy_score(y_test, RFy_pred))
+# print("Training Accuracy Score:", accuracy_score(y_train, RFy_pred_train))
+
+# #make the confusion matrix
+# print("Confusion Matrix:")
+# cm = confusion_matrix(y_test, RFy_pred)
+# #create dataframe from confusion matrix so it can be turned into a heatmap
+# cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+# #make heatmap
+# plt.figure(figsize=(10, 7))
+# sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+#             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
+# plt.xlabel('Predicted Labels')
+# plt.ylabel('True Labels')
+# plt.title('Random Forest Confusion Matrix')
+# plt.show()
+
+#SUPPORT VECTOR MACHINE
+
+#parameter grid that will be used in gridsearch for RF. 
+#The main params to tune are kernel, C, and gamma
+SVMparam_grid = {
+     'gamma': ['scale','auto',10,100],
+     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+     'C': [0.001,0.01,0.1, 1, 10]
+ }
+
+#initialize SVM
+SVMmodel = svm.SVC(random_state=69)
+
+SVMgrid_search = GridSearchCV(SVMmodel, SVMparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
+
+#do the grid search
+SVMgrid_search.fit(X_train, y_train)
+
+#best parameters
+print("Best Parameters:", SVMgrid_search.best_params_)
+
+#get the best model
+SVMmodel = SVMgrid_search.best_estimator_
+
+#use the best estimator on the testing data
+SVMy_pred = SVMmodel.predict(X_test)
+SVMy_pred_train = SVMmodel.predict(X_train) 
+
+#Metrics
+print("\nClassification Report:")
+print(classification_report(y_test, SVMy_pred))
+print("Accuracy Score:", accuracy_score(y_test, SVMy_pred))
+print("Training Accuracy Score:", accuracy_score(y_train, SVMy_pred_train))
+
+#make the confusion matrix
+print("Confusion Matrix:")
+cm = confusion_matrix(y_test, SVMy_pred)
+#create dataframe from confusion matrix so it can be turned into a heatmap
+cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+#make heatmap
+plt.figure(figsize=(10, 7))
+sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+            xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('SVM Confusion Matrix')
+plt.show()
+
+#RANDOM FOREST WITH RANDOM SEARCH CV
+
+#parameter grid that will be used in random search for RF. 
+#The main params to tune are num_estimators max depth, min_samples split,... 
+#min_samples_leaf, criterion, and max features
+RF2param_grid = {
+      'n_estimators': [5, 10, 15, 20, 25, 30, 50],
+      'max_depth': [None, 5,10, 15, 25, 45],
+      'min_samples_split': [2, 5, 10, 15],
+      'min_samples_leaf': [1, 2, 4, 6, 12],
+      'max_features': [None,0.1,'sqrt', 'log2', 1, 2, 3],
+      'criterion': ['gini', 'entropy']
+  }
+
+#initialize random forest
+RF2model = RandomForestClassifier(random_state=69)
+
+RF2rand_search = RandomizedSearchCV(RF2model, RF2param_grid, n_iter = 10, cv=5, scoring='f1_weighted', n_jobs=1)
+
+#do the grid search
+RF2rand_search.fit(X_train, y_train)
+
+#best parameters
+print("Best Parameters:", RF2rand_search.best_params_)
+
+#get the best model
+RF2model = RF2rand_search.best_estimator_
+
+#use the best estimator on the testing data
+RF2y_pred = RF2model.predict(X_test)
+RF2y_pred_train = RF2model.predict(X_train) 
+
+#Metrics
+print("\nClassification Report:")
+print(classification_report(y_test, RF2y_pred))
+print("Accuracy Score:", accuracy_score(y_test, RF2y_pred))
+print("Training Accuracy Score:", accuracy_score(y_train, RF2y_pred_train))
+
+#make the confusion matrix
+print("Confusion Matrix:")
+cm = confusion_matrix(y_test, RF2y_pred)
+#create dataframe from confusion matrix so it can be turned into a heatmap
+cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+#make heatmap
+plt.figure(figsize=(10, 7))
+sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+            xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Random Forest RandomSearch CV Confusion Matrix')
 plt.show()
