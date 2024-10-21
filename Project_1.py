@@ -86,7 +86,7 @@ LRparam_grid = {
  }
 
 #initialize logistic regression
-LRmodel = LogisticRegression(multi_class='multinomial', random_state=74, max_iter=100)
+LRmodel = LogisticRegression(multi_class='multinomial', random_state=74, max_iter=5000)
 LRgrid_search = GridSearchCV(LRmodel, LRparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
 
 #do the grid search
@@ -138,69 +138,69 @@ with open('LR_results.csv', 'w', newline='') as f:
     LRaccuracy_df.to_csv(f, index=False)
     
 
-# #RANDOM FOREST
+#RANDOM FOREST
 
-# #parameter grid that will be used in gridsearch for RF. 
-# #The main params to tune are num_estimators max depth, min_samples split,... 
-# #min_samples_leaf, criterion, and max features
-# RFparam_grid = {
-#      'n_estimators': [5, 10, 30, 50],
-#      'max_depth': [None, 5, 15, 45],
-#      'min_samples_split': [2, 5, 10],
-#      'min_samples_leaf': [1, 2, 4, 6],
-#      'max_features': [None,0.1,'sqrt', 'log2', 1, 2, 3],
-#      'criterion': ['gini', 'entropy']
-#  }
+#parameter grid that will be used in gridsearch for RF. 
+#The main params to tune are num_estimators max depth, min_samples split,... 
+#min_samples_leaf, criterion, and max features
+RFparam_grid = {
+      'n_estimators': [5, 10, 30, 50],
+      'max_depth': [None, 5, 15, 45],
+      'min_samples_split': [2, 5, 10],
+      'min_samples_leaf': [1, 2, 4, 6],
+      'max_features': [None,0.1,'sqrt', 'log2', 1, 2, 3],
+      'criterion': ['gini', 'entropy']
+  }
 
-# #initialize random forest
-# RFmodel = RandomForestClassifier(random_state=74)
+#initialize random forest
+RFmodel = RandomForestClassifier(random_state=74)
 
-# RFgrid_search = GridSearchCV(RFmodel, RFparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
+RFgrid_search = GridSearchCV(RFmodel, RFparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
 
-# #do the grid search
-# RFgrid_search.fit(X_train, y_train)
+#do the grid search
+RFgrid_search.fit(X_train, y_train)
 
-# #best parameters
-# print("Best Parameters:", RFgrid_search.best_params_)
+#best parameters
+print("Best Parameters:", RFgrid_search.best_params_)
 
-# #get the best model
-# RFmodel = RFgrid_search.best_estimator_
+#get the best model
+RFmodel = RFgrid_search.best_estimator_
 
 #use the best estimator on the testing and training data
-# RFy_pred = RFmodel.predict(X_test)
-# RFy_pred_train = RFmodel.predict(X_train) 
+RFy_pred = RFmodel.predict(X_test)
+RFy_pred_train = RFmodel.predict(X_train) 
 
-# #Metrics
+#Metrics
 
-# RF_report = classification_report(y_test, RFy_pred, output_dict=True)
-# RF_accuracy = accuracy_score(y_test, RFy_pred)
-# print("Accuracy Score:", RF_accuracy)
-# RF_trainingacc = accuracy_score(y_train, rfy_pred_train)
-# print("Training Accuracy Score:", RF_trainingacc)
+RF_report = classification_report(y_test, RFy_pred, output_dict=True)
+RF_accuracy = accuracy_score(y_test, RFy_pred)
+print("Accuracy Score:", RF_accuracy)
+RF_trainingacc = accuracy_score(y_train, RFy_pred_train)
+print("Training Accuracy Score:", RF_trainingacc)
 
-# #make the confusion matrix
-# print("Confusion Matrix:")
-# RFcm = confusion_matrix(y_test, RFy_pred)
-# #create dataframe from confusion matrix so it can be turned into a heatmap
-# RFcm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
-# #make heatmap
-# plt.figure(figsize=(10, 7))
-# sns.heatmap(RFcm_df, annot=True, cmap='coolwarm', cbar=False,
-#             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
-# plt.xlabel('Predicted Labels')
-# plt.ylabel('True Labels')
-# plt.title('Random Forest Confusion Matrix')
-# plt.show()
+#make the confusion matrix
+print("Confusion Matrix:")
+RFcm = confusion_matrix(y_test, RFy_pred)
+#create dataframe from confusion matrix so it can be turned into a heatmap
+RFcm_df = pd.DataFrame(RFcm, index=np.unique(y_test), columns=np.unique(y_test))
+#make heatmap
+plt.figure(figsize=(10, 7))
+sns.heatmap(RFcm_df, annot=True, cmap='coolwarm', cbar=False,
+            xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Random Forest Confusion Matrix')
+plt.show()
 
-# RFaccuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [RF_accuracy, RF_trainingacc]})
-# RF_report_df = pd.DataFrame(RF_report).transpose()
+RFaccuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [RF_accuracy, RF_trainingacc]})
+RF_report_df = pd.DataFrame(RF_report).transpose()
 
-# #SAVE TO CSV
-# with open('rf_results.csv', 'w', newline='') as f:
-#     f.write("Classification report\n")
-#     RF_report_df.to_csv(f)
-#     f.write("\nAccuracy Score\n")
-#     RFaccuracy_df.to_csv(f, index=False)
+#SAVE TO CSV
+with open('rf_results.csv', 'w', newline='') as f:
+    f.write("Classification report\n")
+    RF_report_df.to_csv(f)
+    f.write("\nAccuracy Score\n")
+    RFaccuracy_df.to_csv(f, index=False)
     
 
 #SUPPORT VECTOR MACHINE
@@ -335,7 +335,8 @@ with open('RF2_results.csv', 'w', newline='') as f:
 # The RandomizedSearchCV rf model and SVM model are stacked. This means that...
 # the outputs of both are used as inputs to a final estimator, in this case
 # a logistic regression model (default for stacking classifier)
-stacked_rf2_svm =  StackingClassifier(estimators= [('rf',RF2model),('svm', SVMmodel)], cv=5, n_jobs=1)
+final_model = LogisticRegression(max_iter=5000, solver='lbfgs')
+stacked_rf2_svm =  StackingClassifier(estimators= [('rf',RF2model),('svm', SVMmodel)], cv=5, n_jobs=1, final_estimator = final_model)
 
 #fit the stacked classifier
 stacked_rf2_svm.fit(X_train, y_train)
