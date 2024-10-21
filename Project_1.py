@@ -9,22 +9,23 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.model_selection import GridSearchCV
-from sklearn.naive_bayes import GaussianNB
 from sklearn import svm
 from sklearn.model_selection import RandomizedSearchCV
+from sklearn.ensemble import StackingClassifier
+import joblib
 
 "STEP 1:"
 
 #Set up data frame from csv
 df = pd.read_csv("Project_1_Data.csv")
-print(df.info())
+#print(df.info())
 
 #Split data, 80/20 train to test ratio, using stratified sampling
 #Done before data visualization to avoid snooping bias
 
 my_splitter = StratifiedShuffleSplit(n_splits = 1,
                                test_size = 0.2,
-                               random_state = 69)
+                               random_state = 74)
 for train_index, test_index in my_splitter.split(df, df["Step"]):
     strat_df_train = df.loc[train_index].reset_index(drop=True)
     strat_df_test = df.loc[test_index].reset_index(drop=True)
@@ -85,7 +86,7 @@ LRparam_grid = {
  }
 
 #initialize logistic regression
-LRmodel = LogisticRegression(multi_class='multinomial', random_state=69, max_iter=100)
+LRmodel = LogisticRegression(multi_class='multinomial', random_state=74, max_iter=100)
 LRgrid_search = GridSearchCV(LRmodel, LRparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
 
 #do the grid search
@@ -97,31 +98,45 @@ print("Best Parameters:", LRgrid_search.best_params_)
 #get the best model
 LRmodel = LRgrid_search.best_estimator_
 
-#use the best estimator on the testing data
+#use the best estimator on the testing and training data
 LRy_pred = LRmodel.predict(X_test)
 LRy_pred_train = LRmodel.predict(X_train) 
 
 #Metrics
 print("\nClassification Report:")
-print(classification_report(y_test, LRy_pred))
-print("Accuracy Score:", accuracy_score(y_test, LRy_pred))
-print("Training Accuracy Score:", accuracy_score(y_train, LRy_pred_train))
+
+LR_report = classification_report(y_test, LRy_pred, output_dict=True)
+LR_accuracy = accuracy_score(y_test, LRy_pred)
+print("Accuracy Score:", LR_accuracy)
+LR_trainingacc = accuracy_score(y_train, LRy_pred_train)
+print("Training Accuracy Score:", LR_trainingacc)
 
 #make the confusion matrix
 print("Confusion Matrix:")
-cm = confusion_matrix(y_test, LRy_pred)
+LRcm = confusion_matrix(y_test, LRy_pred)
 
 #create dataframe from confusion matrix so it can be turned into a heatmap
-cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+LRcm_df = pd.DataFrame(LRcm, index=np.unique(y_test), columns=np.unique(y_test))
 
 #make heatmap
 plt.figure(figsize=(10, 7))
-sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+sns.heatmap(LRcm_df, annot=True, cmap='coolwarm', cbar=False,
             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
 plt.title('Logistic Regression Confusion Matrix')
 plt.show()
+
+LRaccuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [LR_accuracy, LR_trainingacc]})
+LR_report_df = pd.DataFrame(LR_report).transpose()
+
+#SAVE TO CSV
+with open('LR_results.csv', 'w', newline='') as f:
+    f.write("Classification report\n")
+    LR_report_df.to_csv(f)
+    f.write("\nAccuracy Score\n")
+    LRaccuracy_df.to_csv(f, index=False)
+    
 
 # #RANDOM FOREST
 
@@ -138,7 +153,7 @@ plt.show()
 #  }
 
 # #initialize random forest
-# RFmodel = RandomForestClassifier(random_state=69)
+# RFmodel = RandomForestClassifier(random_state=74)
 
 # RFgrid_search = GridSearchCV(RFmodel, RFparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
 
@@ -151,29 +166,42 @@ plt.show()
 # #get the best model
 # RFmodel = RFgrid_search.best_estimator_
 
-# #use the best estimator on the testing data
+#use the best estimator on the testing and training data
 # RFy_pred = RFmodel.predict(X_test)
 # RFy_pred_train = RFmodel.predict(X_train) 
 
 # #Metrics
-# print("\nClassification Report:")
-# print(classification_report(y_test, RFy_pred))
-# print("Accuracy Score:", accuracy_score(y_test, RFy_pred))
-# print("Training Accuracy Score:", accuracy_score(y_train, RFy_pred_train))
+
+# RF_report = classification_report(y_test, RFy_pred, output_dict=True)
+# RF_accuracy = accuracy_score(y_test, RFy_pred)
+# print("Accuracy Score:", RF_accuracy)
+# RF_trainingacc = accuracy_score(y_train, rfy_pred_train)
+# print("Training Accuracy Score:", RF_trainingacc)
 
 # #make the confusion matrix
 # print("Confusion Matrix:")
-# cm = confusion_matrix(y_test, RFy_pred)
+# RFcm = confusion_matrix(y_test, RFy_pred)
 # #create dataframe from confusion matrix so it can be turned into a heatmap
-# cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+# RFcm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
 # #make heatmap
 # plt.figure(figsize=(10, 7))
-# sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+# sns.heatmap(RFcm_df, annot=True, cmap='coolwarm', cbar=False,
 #             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
 # plt.xlabel('Predicted Labels')
 # plt.ylabel('True Labels')
 # plt.title('Random Forest Confusion Matrix')
 # plt.show()
+
+# RFaccuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [RF_accuracy, RF_trainingacc]})
+# RF_report_df = pd.DataFrame(RF_report).transpose()
+
+# #SAVE TO CSV
+# with open('rf_results.csv', 'w', newline='') as f:
+#     f.write("Classification report\n")
+#     RF_report_df.to_csv(f)
+#     f.write("\nAccuracy Score\n")
+#     RFaccuracy_df.to_csv(f, index=False)
+    
 
 #SUPPORT VECTOR MACHINE
 
@@ -186,7 +214,7 @@ SVMparam_grid = {
  }
 
 #initialize SVM
-SVMmodel = svm.SVC(random_state=69)
+SVMmodel = svm.SVC(random_state=74)
 
 SVMgrid_search = GridSearchCV(SVMmodel, SVMparam_grid, cv=5, scoring='f1_weighted', n_jobs=1)
 
@@ -199,29 +227,41 @@ print("Best Parameters:", SVMgrid_search.best_params_)
 #get the best model
 SVMmodel = SVMgrid_search.best_estimator_
 
-#use the best estimator on the testing data
+#use the best estimator on the testing and training data
 SVMy_pred = SVMmodel.predict(X_test)
 SVMy_pred_train = SVMmodel.predict(X_train) 
 
 #Metrics
-print("\nClassification Report:")
-print(classification_report(y_test, SVMy_pred))
-print("Accuracy Score:", accuracy_score(y_test, SVMy_pred))
-print("Training Accuracy Score:", accuracy_score(y_train, SVMy_pred_train))
+SVM_report = classification_report(y_test, SVMy_pred, output_dict=True)
+SVM_accuracy = accuracy_score(y_test, SVMy_pred)
+print("Accuracy Score:", SVM_accuracy)
+SVM_trainingacc = accuracy_score(y_train, SVMy_pred_train)
+print("Training Accuracy Score:", SVM_trainingacc)
 
 #make the confusion matrix
 print("Confusion Matrix:")
-cm = confusion_matrix(y_test, SVMy_pred)
+SVMcm = confusion_matrix(y_test, SVMy_pred)
 #create dataframe from confusion matrix so it can be turned into a heatmap
-cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+SVMcm_df = pd.DataFrame(SVMcm, index=np.unique(y_test), columns=np.unique(y_test))
 #make heatmap
 plt.figure(figsize=(10, 7))
-sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+sns.heatmap(SVMcm_df, annot=True, cmap='coolwarm', cbar=False,
             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
 plt.title('SVM Confusion Matrix')
 plt.show()
+
+SVMaccuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [SVM_accuracy, SVM_trainingacc]})
+SVM_report_df = pd.DataFrame(SVM_report).transpose()
+
+#SAVE TO CSV
+with open('SVM_results.csv', 'w', newline='') as f:
+    f.write("Classification report\n")
+    SVM_report_df.to_csv(f)
+    f.write("\nAccuracy Score\n")
+    SVMaccuracy_df.to_csv(f, index=False)
+
 
 #RANDOM FOREST WITH RANDOM SEARCH CV
 
@@ -238,7 +278,7 @@ RF2param_grid = {
   }
 
 #initialize random forest
-RF2model = RandomForestClassifier(random_state=69)
+RF2model = RandomForestClassifier(random_state=74)
 
 RF2rand_search = RandomizedSearchCV(RF2model, RF2param_grid, n_iter = 10, cv=5, scoring='f1_weighted', n_jobs=1)
 
@@ -251,26 +291,105 @@ print("Best Parameters:", RF2rand_search.best_params_)
 #get the best model
 RF2model = RF2rand_search.best_estimator_
 
-#use the best estimator on the testing data
+#use the best estimator on the testing and training data
 RF2y_pred = RF2model.predict(X_test)
 RF2y_pred_train = RF2model.predict(X_train) 
 
 #Metrics
-print("\nClassification Report:")
-print(classification_report(y_test, RF2y_pred))
-print("Accuracy Score:", accuracy_score(y_test, RF2y_pred))
-print("Training Accuracy Score:", accuracy_score(y_train, RF2y_pred_train))
+RF2_report = classification_report(y_test, RF2y_pred, output_dict=True)
+RF2_accuracy = accuracy_score(y_test, RF2y_pred)
+print("Accuracy Score:", RF2_accuracy)
+RF2_trainingacc = accuracy_score(y_train, RF2y_pred_train)
+print("Training Accuracy Score:", RF2_trainingacc)
+
 
 #make the confusion matrix
 print("Confusion Matrix:")
-cm = confusion_matrix(y_test, RF2y_pred)
+RF2cm = confusion_matrix(y_test, RF2y_pred)
 #create dataframe from confusion matrix so it can be turned into a heatmap
-cm_df = pd.DataFrame(cm, index=np.unique(y_test), columns=np.unique(y_test))
+RF2cm_df = pd.DataFrame(RF2cm, index=np.unique(y_test), columns=np.unique(y_test))
 #make heatmap
 plt.figure(figsize=(10, 7))
-sns.heatmap(cm_df, annot=True, cmap='coolwarm', cbar=False,
+sns.heatmap(RF2cm_df, annot=True, cmap='coolwarm', cbar=False,
             xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
-plt.title('Random Forest RandomSearch CV Confusion Matrix')
+plt.title('Random Forest RandomizedSearchCV Confusion Matrix')
 plt.show()
+
+RF2accuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [RF2_accuracy, RF2_trainingacc]})
+RF2_report_df = pd.DataFrame(RF2_report).transpose()
+
+#SAVE TO CSV
+with open('RF2_results.csv', 'w', newline='') as f:
+    f.write("Classification report\n")
+    RF2_report_df.to_csv(f)
+    f.write("\nAccuracy Score\n")
+    RF2accuracy_df.to_csv(f, index=False)
+
+
+"STEP 6"
+
+# stacking classifier
+
+# The RandomizedSearchCV rf model and SVM model are stacked. This means that...
+# the outputs of both are used as inputs to a final estimator, in this case
+# a logistic regression model (default for stacking classifier)
+stacked_rf2_svm =  StackingClassifier(estimators= [('rf',RF2model),('svm', SVMmodel)], cv=5, n_jobs=1)
+
+#fit the stacked classifier
+stacked_rf2_svm.fit(X_train, y_train)
+
+#use the best estimator on the testing and training data
+stackedy_pred = stacked_rf2_svm.predict(X_test)
+stackedy_pred_train = stacked_rf2_svm.predict(X_train) 
+
+#Metrics
+stacked_report = classification_report(y_test, stackedy_pred, output_dict=True)
+stacked_accuracy = accuracy_score(y_test, stackedy_pred)
+print("Accuracy Score:", stacked_accuracy)
+stacked_trainingacc = accuracy_score(y_train, stackedy_pred_train)
+print("Training Accuracy Score:", stacked_trainingacc)
+
+
+#make the confusion matrix
+print("Confusion Matrix:")
+stackedcm = confusion_matrix(y_test, stackedy_pred)
+#create dataframe from confusion matrix so it can be turned into a heatmap
+stackedcm_df = pd.DataFrame(stackedcm, index=np.unique(y_test), columns=np.unique(y_test))
+#make heatmap
+plt.figure(figsize=(10, 7))
+sns.heatmap(stackedcm_df, annot=True, cmap='coolwarm', cbar=False,
+            xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Stacked RF RandomizedSearchCV and SVM Confusion Matrix')
+plt.show()
+
+stackedaccuracy_df = pd.DataFrame({'Metric': ['Accuracy','Training Accuracy'], 'Score': [stacked_accuracy, stacked_trainingacc]})
+stacked_report_df = pd.DataFrame(stacked_report).transpose()
+
+#SAVE TO CSV
+with open('stacked_results.csv', 'w', newline='') as f:
+    f.write("Classification report\n")
+    stacked_report_df.to_csv(f)
+    f.write("\nAccuracy Score\n")
+    stackedaccuracy_df.to_csv(f, index=False)
+
+
+"STEP 7"
+#save the stacked model as a pickle file
+joblib.dump(stacked_rf2_svm, 'stacked_rf2_svm.pkl')
+
+#load model from pickle file and run it on new data set
+
+stacked_loadedmdl = joblib.load('stacked_rf2_svm.pkl')
+new_data = pd.DataFrame(data=np.array([[9.375,3.0625,1.51], [6.995,5.125,0.3875], [0,3.0625,1.93], [9.4,3,1.8], [9.4,3,1.3]]), columns=['X','Y','Z'])
+new_ypred = stacked_loadedmdl.predict(new_data)
+print("The predcitions from new data are")
+print(new_ypred)
+
+#save to csv
+new_df = pd.DataFrame({'Class': [new_ypred]})
+with open('new_results.csv', 'w', newline='') as f:
+    new_df.to_csv(f)
